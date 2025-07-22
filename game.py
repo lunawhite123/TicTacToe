@@ -1,7 +1,22 @@
 import pygame
 import sys
+import logging
+from pathlib import Path
 
 pygame.init()
+
+logging.basicConfig(
+    filename='TicTacToe.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%d-%m-%Y %H-%M-%S',
+    encoding='utf-8'
+    
+)
+
+
+
+
 
 
 
@@ -49,6 +64,7 @@ class Game:
         self.current_player = None
 
     def start_game(self):
+        result = None
         #DATA
         # Pictures
         image = pygame.image.load('C:/Users/luna/Pictures/tictactoe1.png')
@@ -76,7 +92,7 @@ class Game:
 #RENDER FONTS
         text_start_game = font.render("Start Game", True, white)
         text_enter_name = font_enter_name.render("Enter your nickname: ", True, black)
-        text_game_over = font_enter_name.render("GAME OVER!", True, black)
+        text_game_over = font_enter_name.render("GAME OVER", True, black)
         text_exit = font_enter_name.render('Press Escape to exit', True, black)
         text_restart = font_enter_name.render("Press R to restart", True, black)
         game_over_print = [text_game_over,text_exit,text_restart]
@@ -160,7 +176,12 @@ class Game:
                                     self.board[cell_to_coords[coord]] = self.current_player.symbol
                                     result = self.check_result()
                                     if result:
+                                        text_game_over = font_enter_name.render(result, True, black)
+                                        game_over_print[0] = text_game_over
                                         game_state = "game_over"
+                                        logging.info(f'Players: {self.player1.name}, {self.player2.name},\nResult: {result},\nBoard:\n{self.board} ')
+                                        self.check_log()
+                                        
                                     
                                     self.current_player = self.player2 if self.current_player == self.player1 else self.player1
                                 break
@@ -177,6 +198,8 @@ class Game:
                         player1_name = ""
                         player2_name = ""
                         game_state = 'menu'
+                        text_game_over = font_enter_name.render("GAME OVER", True, black)
+                        game_over_print[0] = text_game_over
             
 
             if game_state == "menu":
@@ -242,14 +265,14 @@ class Game:
             # проверка строк и столбцов
         for index,lst in enumerate(self.board):
             if all(cell == player.symbol for cell in lst):
-                return f'{player} Win!'
+                return f'{player.name} Win!'
             elif self.board[0][index] == player.symbol and self.board[1][index] == player.symbol and self.board[2][index] == player.symbol:
-                    return f'{player} Win!'
+                    return f'{player.name} Win!'
             # проверка диагоналей
         if self.board[0][0] == player.symbol and self.board [1][1] == player.symbol and self.board [2][2] == player.symbol:
-            return f'{player} Win!'
+            return f'{player.name} Win!'
         elif self.board[0][2] == player.symbol and self.board [1][1] == player.symbol and self.board [2][0] == player.symbol:
-            return f'{player} Win!'
+            return f'{player.name} Win!'
         return None
             
     def check_draw(self):
@@ -276,6 +299,21 @@ class Game:
             self.player2.draws += 1
             return "Draw, today nobody wins!"
         return None
+    
+    def check_log(self):
+        file = Path('TicTacToe.log')
+        
+        if file.exists():
+            with open(file, 'r', encoding='utf-8') as f:
+                file_data = f.readlines()
+                
+        if len(file_data) > 50:
+            file_data = file_data[:-30]
+            with open(file, 'w', encoding='utf-8') as f:
+                f.writelines(file_data)
+
+
+
 
 board = Board()
 game = Game(board)
