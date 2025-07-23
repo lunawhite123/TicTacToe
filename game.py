@@ -11,7 +11,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%d-%m-%Y %H-%M-%S',
     encoding='utf-8'
-    
 )
 
 
@@ -107,6 +106,10 @@ class Game:
         ]
         #clock
         clock = pygame.time.Clock()
+        #AI
+        start_game_rect_ai = pygame.Rect(220, 300, 300, 50)
+        text_ai = font.render("Play vs AI", True, white)
+
         #cells
 
         cell1 = pygame.Rect(rect_tictactoe.x,rect_tictactoe.y, 100, 100)
@@ -123,11 +126,8 @@ class Game:
         0: (0, 0), 1: (0, 1), 2: (0, 2),
         3: (1, 0), 4: (1, 1), 5: (1, 2),
         6: (2, 0), 7: (2, 1), 8: (2, 2)}
-    
-
-
         
-        
+        game_mode = None
         game_state = "menu"
         ##############
         
@@ -144,18 +144,28 @@ class Game:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if start_game_rect.collidepoint(event.pos):
                             game_state = 'player1_input'
-                
-                elif game_state == "player1_input":
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_RETURN and player1_name != '':
-                                self.player1 = Player(player1_name, 'X')
-                                game_state = 'player2_input'
-                            
-                            elif event.key == pygame.K_BACKSPACE:
-                                player1_name = player1_name[:-1]
-                            
-                            elif len(player1_name) <= 20 and event.unicode.isprintable():
-                                player1_name += event.unicode
+                        elif start_game_rect_ai.collidepoint(event.pos):
+                            game_mode = 'ai'
+                            game_state = 'player1_input'
+
+                                
+                elif game_state == 'player1_input':
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN and player1_name != '':
+                            self.player1 = Player(player1_name, 'X')
+                            game_state = 'player2_input'
+                        
+                        elif event.key == pygame.K_BACKSPACE:
+                            player1_name = player1_name[:-1]
+                        
+                        elif len(player1_name) <= 20 and event.unicode.isprintable():
+                            player1_name += event.unicode
+
+                elif game_state == "player2_input" and game_mode == 'ai':
+                            player2_name = 'ai'
+                            self.player2 = Player(player2_name, 'O')
+                            self.current_player = self.player1
+                            game_state = "game"
 
                 elif game_state == "player2_input":
                         if event.type == pygame.KEYDOWN:
@@ -168,7 +178,8 @@ class Game:
                             
                             elif len(player2_name) <= 20 and event.unicode.isprintable():
                                 player2_name += event.unicode
-                elif game_state == 'game':
+
+                elif game_state == 'game' and game_mode != 'ai':
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         for coord, cell in enumerate(cells):
                             if cell.collidepoint(event.pos):
@@ -184,8 +195,39 @@ class Game:
                                         
                                     
                                     self.current_player = self.player2 if self.current_player == self.player1 else self.player1
-                                break
-
+                                    break
+                
+                elif game_state == 'game':
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if self.current_player == self.player1:
+                            for coord, cell in enumerate(cells):
+                                if cell.collidepoint(event.pos):
+                                    if self.board[cell_to_coords[coord]] == ' ':
+                                        self.board[cell_to_coords[coord]] = self.current_player.symbol
+                                        result = self.check_result()
+                                        if result:
+                                            text_game_over = font_enter_name.render(result, True, black)
+                                            game_over_print[0] = text_game_over
+                                            game_state = "game_over"
+                                            logging.info(f'Players: {self.player1.name}, {self.player2.name},\nResult: {result},\nBoard:\n{self.board} ')
+                                            self.check_log()
+                                        else:
+                                            self.current_player = self.player2
+                                            best_move = self.find_best_move()
+                                            self.board[best_move] = self.player2.symbol
+                                            result = self.check_result()
+                                            if result:
+                                                text_game_over = font_enter_name.render(result, True, black)
+                                                game_over_print[0] = text_game_over
+                                                game_state = "game_over"
+                                                logging.info(f'Players: {self.player1.name}, {self.player2.name},\nResult: {result},\nBoard:\n{self.board} ')
+                                                self.check_log()
+                                                
+                                            
+                                        self.current_player = self.player1
+                                        
+                                    break
+                        
                 elif game_state == 'game_over':
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         pygame.quit()
@@ -201,14 +243,14 @@ class Game:
                         text_game_over = font_enter_name.render("GAME OVER", True, black)
                         game_over_print[0] = text_game_over
             
-
             if game_state == "menu":
                 screen.blit(image, (0,0))
                 pygame.draw.rect(screen,DarkSlateGray,start_game_rect)
                 screen.blit(text_start_game, (start_game_rect.x + 100, start_game_rect.y + 20))
-                        
-                        
-            elif game_state == 'player1_input':         
+                pygame.draw.rect(screen,(100, 150, 100),start_game_rect_ai)
+                screen.blit(text_ai, (start_game_rect_ai.x + 100, start_game_rect_ai.y + 10))
+
+            elif game_state == 'player1_input':
                 screen.blit(image1, (0,0))
                 pygame.draw.rect(screen, DarkKhaki, start_game_rect1)
                 screen.blit(text_enter_name, (start_game_rect1.x + 20, start_game_rect1.y + 20))
@@ -312,8 +354,58 @@ class Game:
             with open(file, 'w', encoding='utf-8') as f:
                 f.writelines(file_data)
 
+    def evaluate(self):
+        if self.check_win(self.player2):
+            return 10
+        elif self.check_win(self.player1):
+            return -10
+        return 0
+    
+    def minimax(self,board,depth,is_maximizaing):
+        score = self.evaluate()
 
+        if score == 10:
+            return score - depth
+        if score == -10:
+            return score + depth
+        
+        if self.check_draw():
+            return 0
+        
+        if is_maximizaing:
+            best_score = -float('inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] == ' ':
+                        board[i][j] = 'O'
+                        best_score = max(best_score, self.minimax(board, depth+1, False))
+                        board[i][j] = ' '
+            return best_score
 
+        else:
+            best_score = float('inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] == ' ':
+                        board[i][j] = 'X'
+                        best_score = min(best_score, self.minimax(board, depth+1, True))
+                        board[i][j] = ' '
+            return best_score
+        
+    def find_best_move(self):
+        best_val = -1000
+        best_move = (-1,-1)
+        for i in range(3):
+            for j in range(3):
+                if self.board[i][j] == ' ':
+                    self.board[i][j] = 'O'
+                    move_val = self.minimax(self.board, 0, False)
+                    self.board[i][j] = ' '
+
+                    if move_val > best_val:
+                        best_move = (i, j)
+                        best_val = move_val
+        return best_move
 
 board = Board()
 game = Game(board)
